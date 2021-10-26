@@ -4,11 +4,16 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
+    "dist": "rm -rf dist && rollup -c",
+    "install": "npm run dist",
     "test": "jest",
     "lint": "standard"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-node-resolve": "^13.0.6",
     "jest": "^27.3.1",
+    "rollup": "^2.58.3",
     "standard": "^16.0.4"
   },
   "dependencies": {
