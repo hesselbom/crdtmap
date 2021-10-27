@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dist": "rm -rf dist && rollup -c",
-    "install": "npm run dist",
+    "prepare": "npm run dist",
     "test": "jest",
     "lint": "standard"
   },
