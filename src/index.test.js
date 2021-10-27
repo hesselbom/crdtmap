@@ -194,19 +194,19 @@ test('clear all data from timestamp, to clean up', () => {
   doc.set('key1', 'data', 1000) // will be cleared
   doc.set('key2', 'data', 1500) // will stay
 
-  doc.clearFromTimestamp(1499, 1500) // everything before this is removed
+  doc.clearToTimestamp(1499, 1500) // everything before this is removed
 
   doc.set('key3', 'data', 1000) // will not be added at all
   doc.set('key4', 'data', 1499) // will be added because it's precisely at timestamp clear
 
   expect(doc.toJSON()).toEqual({
-    _clearedFromTimestamp: 1499,
+    _clearedToTimestamp: 1499,
     key2: 'data',
     key4: 'data'
   })
 
   expect(doc.getSnapshotFromTimestamp(0)).toEqual({
-    _clearedFromTimestamp: { timestamp: 1500, data: 1499, clientId: 'clientId' },
+    _clearedToTimestamp: { timestamp: 1500, data: 1499, clientId: 'clientId' },
     key2: { timestamp: 1500, data: 'data', clientId: 'clientId' },
     key4: { timestamp: 1499, data: 'data', clientId: 'clientId' }
   })
@@ -229,11 +229,11 @@ test('merge snapshot to document', () => {
   })
 })
 
-test('merge snapshot to document with _clearedFromTimestamp', () => {
+test('merge snapshot to document with _clearedToTimestamp', () => {
   const docA = VDoc()
   docA.set('key1', 'dataA', 1000)
   docA.set('key2', 'dataA', 1500)
-  docA.clearFromTimestamp(1498)
+  docA.clearToTimestamp(1498)
 
   const docB = VDoc()
   docB.set('key1', 'dataB', 1001)
@@ -242,8 +242,170 @@ test('merge snapshot to document with _clearedFromTimestamp', () => {
   docA.applySnapshot(docB.getSnapshotFromTimestamp(0))
 
   expect(docA.toJSON()).toEqual({
-    _clearedFromTimestamp: 1498,
+    _clearedToTimestamp: 1498,
     // No key1 since it's cleared
     key2: 'dataA'
   })
+})
+
+// State vectors are latest stored timestamp from each clientId
+describe('state vectors', () => {
+  test('get state vectors', () => {
+    const doc = VDoc()
+
+    // Empty before any data
+    expect(doc.getStateVectors()).toEqual({})
+
+    doc.set('key1', 'dataA', 1000, 'clientA')
+    doc.set('key2', 'dataA', 1500, 'clientA')
+
+    // Same key but earlier timestamp, should still be remembered
+    doc.set('key2', 'dataB', 1400, 'clientB')
+
+    // Verify snapshot is only clientA
+    expect(doc.getSnapshotFromTimestamp(0)).toEqual({
+      key1: { timestamp: 1000, data: 'dataA', clientId: 'clientA' },
+      key2: { timestamp: 1500, data: 'dataA', clientId: 'clientA' }
+    })
+
+    // Get state vectors
+    expect(doc.getStateVectors()).toEqual({
+      clientA: 1500,
+      clientB: 1400
+    })
+  })
+
+  test('remove old state vectors with clearToTimestamp', () => {
+    const doc = VDoc()
+
+    doc.set('key1', 'dataA', 1000, 'clientA')
+    doc.set('key1', 'dataB', 1400, 'clientB')
+
+    // Get state vectors
+    expect(doc.getStateVectors()).toEqual({
+      clientA: 1000,
+      clientB: 1400
+    })
+
+    // Clear
+    doc.clearToTimestamp(1300, 1400, 'clientB')
+
+    // Get state vectors with cleared
+    expect(doc.getStateVectors()).toEqual({ clientB: 1400 })
+
+    // When adding new key with old timestamp, should not be added to state vector
+    doc.set('key1', 'dataA', 1100, 'clientA')
+    expect(doc.getStateVectors()).toEqual({ clientB: 1400 })
+  })
+
+  test('encode/decode state vectors', () => {
+    const doc = VDoc()
+
+    doc.set('key1', 'dataA', 1000, 'clientA')
+    doc.set('key1', 'dataB', 1400, 'clientB')
+
+    const resultStateVectors = doc.getStateVectors()
+    const byteArray = doc.getEncodedStateVectors()
+    const decodedStateVectors = VDoc.decodeStateVectors(byteArray)
+
+    // Make sure we get byte array
+    expect(byteArray)
+      .toBeInstanceOf(Uint8Array)
+
+    // Verify that both state vectors and decoded state vectors are the same
+    expect(resultStateVectors).toEqual({
+      clientA: 1000,
+      clientB: 1400
+    })
+
+    expect(decodedStateVectors).toEqual({
+      clientA: 1000,
+      clientB: 1400
+    })
+  })
+
+  test('get snapshot from state vectors', () => {
+    const doc = VDoc()
+
+    doc.set('key1', 'dataA', 1000, 'clientA')
+    doc.set('key1', 'dataB', 1400, 'clientB')
+    doc.set('key1', 'dataA', 1300, 'clientA')
+    doc.set('key2', 'dataA', 1300, 'clientA')
+    doc.set('key3', 'dataA', 1200, 'clientA')
+
+    // Get from both clientA and clientB
+    expect(doc.getSnapshotFromStateVectors({
+      clientA: 0,
+      clientB: 0
+    })).toEqual({
+      key1: { timestamp: 1400, data: 'dataB', clientId: 'clientB' },
+      key2: { timestamp: 1300, data: 'dataA', clientId: 'clientA' },
+      key3: { timestamp: 1200, data: 'dataA', clientId: 'clientA' }
+    })
+
+    // Get only from clientB because we have latest from clientA
+    expect(doc.getSnapshotFromStateVectors({
+      clientA: 1500,
+      clientB: 0
+    })).toEqual({
+      key1: { timestamp: 1400, data: 'dataB', clientId: 'clientB' }
+    })
+
+    // Get missing from clientA (those after our latest vector, i.e. 1200)
+    expect(doc.getSnapshotFromStateVectors({
+      clientA: 1200,
+      clientB: 1500
+    })).toEqual({
+      key2: { timestamp: 1300, data: 'dataA', clientId: 'clientA' }
+      // Not key3 because we've already seen it (1200)
+      // key3: { timestamp: 1200, data: 'dataA', clientId: 'clientA' }
+    })
+
+    // Get all because we're missing all state vectors
+    expect(doc.getSnapshotFromStateVectors({})).toEqual({
+      key1: { timestamp: 1400, data: 'dataB', clientId: 'clientB' },
+      key2: { timestamp: 1300, data: 'dataA', clientId: 'clientA' },
+      key3: { timestamp: 1200, data: 'dataA', clientId: 'clientA' }
+    })
+  })
+})
+
+test('events', () => {
+  const doc = VDoc()
+  const onUpdate = jest.fn()
+  const onSnapshot = jest.fn()
+
+  // Events after .on()
+  doc.on('update', onUpdate)
+  doc.on('snapshot', onSnapshot)
+
+  doc.set('key1', 'dataA', 1000, 'clientA')
+  doc.remove('key1', 1100, 'clientB')
+  doc.clearToTimestamp(0, 1100, 'clientC')
+  doc.applySnapshot({
+    key2: { timestamp: 1500, data: 'dataB', clientId: 'clientB' }
+  })
+
+  // No events after .off()
+  doc.off('update', onUpdate)
+  doc.off('snapshot', onSnapshot)
+
+  doc.set('key1', 'dataA', 1000, 'clientA')
+  doc.remove('key1', 1100, 'clientB')
+  doc.clearToTimestamp(0, 1100, 'clientC')
+  doc.applySnapshot({
+    key2: { timestamp: 1500, data: 'dataB', clientId: 'clientB' }
+  })
+
+  // Event listener should've been called 3 times
+  expect(onUpdate.mock.calls).toEqual([
+    [{ key: 'key1', data: 'dataA', timestamp: 1000, clientId: 'clientA' }],
+    [{ key: 'key1', data: null, timestamp: 1100, clientId: 'clientB' }],
+    [{ key: '_clearedToTimestamp', data: 0, timestamp: 1100, clientId: 'clientC' }]
+  ])
+
+  // Snapshot should only call snapshot event, not multiple "set"s
+  expect(onSnapshot.mock.calls).toEqual([
+    [{ key2: { timestamp: 1500, data: 'dataB', clientId: 'clientB' } }]
+  ])
 })

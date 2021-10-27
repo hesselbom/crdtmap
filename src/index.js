@@ -2,41 +2,73 @@
 // Latest key update is always used, with some conflict resolution when timestamp is equal
 
 const cuid = require('cuid')
+const { setIfUndefined } = require('lib0/dist/map.cjs')
+const set = require('lib0/dist/set.cjs')
 const encoding = require('lib0/dist/encoding.cjs')
 const decoding = require('lib0/dist/decoding.cjs')
 
 function VDoc (options) {
   const map = new Map()
+  const stateVectors = new Map()
+  const observers = new Map()
   const localClientId = (options && options.clientId) || cuid()
 
-  const clearFromTimestamp = (timestamp) => {
+  const clearToTimestamp = (timestamp) => {
+    // Clear old data
     for (const [key, value] of map.entries()) {
       if (value.timestamp < timestamp) {
         map.delete(key)
+      }
+    }
+
+    // Clear old state vectors
+    for (const [key, vector] of stateVectors.entries()) {
+      if (vector < timestamp) {
+        stateVectors.delete(key)
       }
     }
   }
 
   return {
     clientId: localClientId,
-    set: function (key, data, timestamp, clientId) {
+    on: function (name, callback) {
+      setIfUndefined(observers, name, set.create).add(callback)
+    },
+    off: function (name, callback) {
+      const nameObservers = observers.get(name)
+      if (nameObservers != null) {
+        nameObservers.delete(callback)
+        if (nameObservers.size === 0) {
+          observers.delete(name)
+        }
+      }
+    },
+    emit: function (name, args) {
+      // copy all listeners to an array first to make sure that no event is emitted to listeners that are subscribed while the event handler is called.
+      return Array.from((observers.get(name) || new Map()).values()).forEach(f => f(...args))
+    },
+    set: function (key, data, timestamp, clientId, emitEvents = true) {
       const existing = map.get(key)
-      const clearedFromTimestamp = map.get('_clearedFromTimestamp')
+      const clearedToTimestamp = map.get('_clearedToTimestamp')
 
       clientId = clientId == null ? localClientId : clientId
       timestamp = timestamp == null ? Date.now() : timestamp
 
       // Check if timestamp is before cleared timestamp
-      if (clearedFromTimestamp && timestamp < clearedFromTimestamp.data) {
+      if (clearedToTimestamp && timestamp < clearedToTimestamp.data) {
         return
       }
 
+      // Update client state vector
+      stateVectors.set(clientId, Math.max(stateVectors.get(clientId) || 0, timestamp))
+
       if (!existing) {
         map.set(key, { timestamp, data, clientId })
+        if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
 
         // Clear all data prior to this timestamp
-        if (key === '_clearedFromTimestamp') {
-          clearFromTimestamp(data)
+        if (key === '_clearedToTimestamp') {
+          clearToTimestamp(data)
         }
 
         return
@@ -51,10 +83,11 @@ function VDoc (options) {
       if (timestamp === existing.timestamp && clientId !== existing.clientId) {
         if (clientId > existing.clientId) {
           map.set(key, { timestamp, data, clientId })
+          if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
 
           // Clear all data prior to this timestamp
-          if (key === '_clearedFromTimestamp') {
-            clearFromTimestamp(data)
+          if (key === '_clearedToTimestamp') {
+            clearToTimestamp(data)
           }
         }
         return
@@ -62,15 +95,25 @@ function VDoc (options) {
 
       if (timestamp >= existing.timestamp) {
         map.set(key, { timestamp, data, clientId })
+        if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
 
         // Clear all data prior to this timestamp
-        if (key === '_clearedFromTimestamp') {
-          clearFromTimestamp(data)
+        if (key === '_clearedToTimestamp') {
+          clearToTimestamp(data)
         }
       }
     },
     remove: function (key, timestamp, clientId) {
       this.set(key, null, timestamp, clientId)
+    },
+    clearToTimestamp: function (fromTimestamp, timestamp, updateClientId) {
+      this.set('_clearedToTimestamp', fromTimestamp, timestamp, updateClientId)
+    },
+    applySnapshot: function (snapshot) {
+      for (const [key, value] of Object.entries(snapshot)) {
+        this.set(key, value.data, value.timestamp, value.clientId, false)
+      }
+      this.emit('snapshot', [snapshot])
     },
     toJSON: function () {
       const obj = {}
@@ -116,13 +159,31 @@ function VDoc (options) {
 
       return encoding.toUint8Array(encoder)
     },
-    clearFromTimestamp: function (fromTimestamp, timestamp, updateClientId) {
-      this.set('_clearedFromTimestamp', fromTimestamp, timestamp, updateClientId)
+    getStateVectors: function () {
+      return Object.fromEntries(stateVectors)
     },
-    applySnapshot: function (snapshot) {
-      for (const [key, value] of Object.entries(snapshot)) {
-        this.set(key, value.data, value.timestamp, value.clientId)
+    getEncodedStateVectors: function () {
+      const encoder = encoding.createEncoder()
+      const stateVectors = this.getStateVectors()
+
+      for (const [key, vector] of Object.entries(stateVectors)) {
+        encoding.writeVarString(encoder, key)
+        encoding.writeFloat64(encoder, vector)
       }
+
+      return encoding.toUint8Array(encoder)
+    },
+    getSnapshotFromStateVectors: function (stateVectors) {
+      const obj = {}
+
+      map.forEach((value, key) => {
+        const vector = stateVectors[value.clientId]
+        if (!vector || value.timestamp > vector) {
+          obj[key] = value
+        }
+      })
+
+      return obj
     }
   }
 }
@@ -150,6 +211,20 @@ VDoc.decodeSnapshot = function decodeSnapshot (byteArray) {
   }
 
   return snapshot
+}
+
+VDoc.decodeStateVectors = function decodeStateVectors (byteArray) {
+  const decoder = decoding.createDecoder(byteArray)
+  const stateVectors = {}
+
+  while (decoder.pos < decoder.arr.length) {
+    const key = decoding.readVarString(decoder)
+    const vector = decoding.readFloat64(decoder)
+
+    stateVectors[key] = vector
+  }
+
+  return stateVectors
 }
 
 module.exports = VDoc
