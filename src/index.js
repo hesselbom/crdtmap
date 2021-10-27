@@ -137,41 +137,8 @@ function VDoc (options) {
 
       return obj
     },
-    getEncodedSnapshotFromTimestamp: function (timestamp) {
-      const encoder = encoding.createEncoder()
-
-      map.forEach((value, key) => {
-        if (value.timestamp >= timestamp) {
-          if (value.data === null) {
-            encoding.writeUint8(encoder, 0)
-            encoding.writeVarString(encoder, key)
-            encoding.writeFloat64(encoder, value.timestamp)
-            encoding.writeVarString(encoder, value.clientId)
-          } else {
-            encoding.writeUint8(encoder, 1)
-            encoding.writeVarString(encoder, key)
-            encoding.writeFloat64(encoder, value.timestamp)
-            encoding.writeVarString(encoder, value.clientId)
-            encoding.writeAny(encoder, value.data)
-          }
-        }
-      })
-
-      return encoding.toUint8Array(encoder)
-    },
     getStateVectors: function () {
       return Object.fromEntries(stateVectors)
-    },
-    getEncodedStateVectors: function () {
-      const encoder = encoding.createEncoder()
-      const stateVectors = this.getStateVectors()
-
-      for (const [key, vector] of Object.entries(stateVectors)) {
-        encoding.writeVarString(encoder, key)
-        encoding.writeFloat64(encoder, vector)
-      }
-
-      return encoding.toUint8Array(encoder)
     },
     getSnapshotFromStateVectors: function (stateVectors) {
       const obj = {}
@@ -186,6 +153,27 @@ function VDoc (options) {
       return obj
     }
   }
+}
+
+VDoc.encodeSnapshot = function encodeSnapshot (snapshot) {
+  const encoder = encoding.createEncoder()
+
+  for (const [key, value] of Object.entries(snapshot)) {
+    if (value.data === null) {
+      encoding.writeUint8(encoder, 0)
+      encoding.writeVarString(encoder, key)
+      encoding.writeFloat64(encoder, value.timestamp)
+      encoding.writeVarString(encoder, value.clientId)
+    } else {
+      encoding.writeUint8(encoder, 1)
+      encoding.writeVarString(encoder, key)
+      encoding.writeFloat64(encoder, value.timestamp)
+      encoding.writeVarString(encoder, value.clientId)
+      encoding.writeAny(encoder, value.data)
+    }
+  }
+
+  return encoding.toUint8Array(encoder)
 }
 
 VDoc.decodeSnapshot = function decodeSnapshot (byteArray) {
@@ -211,6 +199,17 @@ VDoc.decodeSnapshot = function decodeSnapshot (byteArray) {
   }
 
   return snapshot
+}
+
+VDoc.encodeStateVectors = function encodeStateVectors (stateVectors) {
+  const encoder = encoding.createEncoder()
+
+  for (const [key, vector] of Object.entries(stateVectors)) {
+    encoding.writeVarString(encoder, key)
+    encoding.writeFloat64(encoder, vector)
+  }
+
+  return encoding.toUint8Array(encoder)
 }
 
 VDoc.decodeStateVectors = function decodeStateVectors (byteArray) {

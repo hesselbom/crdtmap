@@ -137,7 +137,7 @@ test('get diff snapshot encoded as uint8 after specific timestamp, and decode', 
   doc.remove('key', 2000)
 
   const resultSnapshot = doc.getSnapshotFromTimestamp(1500)
-  const byteArray = doc.getEncodedSnapshotFromTimestamp(1500)
+  const byteArray = VDoc.encodeSnapshot(doc.getSnapshotFromTimestamp(1500))
   const decodedSnapshot = VDoc.decodeSnapshot(byteArray)
 
   // Make sure we get byte array
@@ -165,7 +165,7 @@ test('handle encode/decode of various types', () => {
   doc.set('object', { foo: 'bar' }, 1000)
 
   const resultSnapshot = doc.getSnapshotFromTimestamp(0)
-  const byteArray = doc.getEncodedSnapshotFromTimestamp(0)
+  const byteArray = VDoc.encodeSnapshot(doc.getSnapshotFromTimestamp(0))
   const decodedSnapshot = VDoc.decodeSnapshot(byteArray)
 
   // Make sure we get byte array
@@ -305,7 +305,7 @@ describe('state vectors', () => {
     doc.set('key1', 'dataB', 1400, 'clientB')
 
     const resultStateVectors = doc.getStateVectors()
-    const byteArray = doc.getEncodedStateVectors()
+    const byteArray = VDoc.encodeStateVectors(doc.getStateVectors())
     const decodedStateVectors = VDoc.decodeStateVectors(byteArray)
 
     // Make sure we get byte array
