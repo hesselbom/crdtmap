@@ -137,9 +137,6 @@ function VDoc (options) {
 
       return obj
     },
-    getStateVectors: function () {
-      return Object.fromEntries(stateVectors)
-    },
     getSnapshotFromStateVectors: function (stateVectors) {
       const obj = {}
 
@@ -151,6 +148,9 @@ function VDoc (options) {
       })
 
       return obj
+    },
+    getStateVectors: function () {
+      return Object.fromEntries(stateVectors)
     }
   }
 }
