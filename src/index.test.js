@@ -425,8 +425,8 @@ test('events', () => {
 
   // Event listener should've been called 3 times
   expect(onUpdate.mock.calls).toEqual([
-    [{ key: 'key1', data: 'dataA', timestamp: 1000, clientId: 1 }],
-    [{ key: 'key1', data: null, timestamp: 1100, clientId: 2 }]
+    [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
+    [{ key1: { timestamp: 1100, data: null, clientId: 2 } }]
   ])
 
   // Snapshot should only call snapshot event, not multiple "set"s

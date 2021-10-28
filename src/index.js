@@ -58,7 +58,7 @@ function VDoc (options) {
 
       if (!existing) {
         map.set(key, { timestamp, data, clientId })
-        if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
+        if (emitEvents) this.emit('update', [{ [key]: { data, timestamp, clientId } }])
         return
       }
 
@@ -71,14 +71,14 @@ function VDoc (options) {
       if (timestamp === existing.timestamp && clientId !== existing.clientId) {
         if (clientId > existing.clientId) {
           map.set(key, { timestamp, data, clientId })
-          if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
+          if (emitEvents) this.emit('update', [{ [key]: { data, timestamp, clientId } }])
         }
         return
       }
 
       if (timestamp >= existing.timestamp) {
         map.set(key, { timestamp, data, clientId })
-        if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
+        if (emitEvents) this.emit('update', [{ [key]: { data, timestamp, clientId } }])
       }
     },
     remove: function (key, timestamp, clientId) {
