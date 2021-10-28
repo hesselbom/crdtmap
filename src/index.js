@@ -1,8 +1,8 @@
 // Similar to a LWW-Element-Set but being a key-value store instead of just unique keys.
 // Latest key update is always used, with some conflict resolution when timestamp is equal
 
-const cuid = require('cuid')
 const { setIfUndefined } = require('lib0/dist/map.cjs')
+const random = require('lib0/dist/random.cjs')
 const set = require('lib0/dist/set.cjs')
 const encoding = require('lib0/dist/encoding.cjs')
 const decoding = require('lib0/dist/decoding.cjs')
@@ -11,7 +11,7 @@ function VDoc (options) {
   const map = new Map()
   const stateVectors = new Map()
   const observers = new Map()
-  const localClientId = (options && options.clientId) || cuid()
+  const localClientId = (options && options.clientId) || random.uint32()
 
   const clearToTimestamp = (timestamp) => {
     // Clear old removed/tombstoned data
@@ -143,12 +143,12 @@ VDoc.encodeSnapshot = function encodeSnapshot (snapshot) {
       encoding.writeUint8(encoder, 0)
       encoding.writeVarString(encoder, key)
       encoding.writeFloat64(encoder, value.timestamp)
-      encoding.writeVarString(encoder, value.clientId)
+      encoding.writeUint32(encoder, value.clientId)
     } else {
       encoding.writeUint8(encoder, 1)
       encoding.writeVarString(encoder, key)
       encoding.writeFloat64(encoder, value.timestamp)
-      encoding.writeVarString(encoder, value.clientId)
+      encoding.writeUint32(encoder, value.clientId)
       encoding.writeAny(encoder, value.data)
     }
   }
@@ -166,7 +166,7 @@ VDoc.decodeSnapshot = function decodeSnapshot (byteArray) {
 
     const object = {
       timestamp: decoding.readFloat64(decoder),
-      clientId: decoding.readVarString(decoder)
+      clientId: decoding.readUint32(decoder)
     }
 
     if (hasData) {
