@@ -14,9 +14,9 @@ function VDoc (options) {
   const localClientId = (options && options.clientId) || cuid()
 
   const clearToTimestamp = (timestamp) => {
-    // Clear old data
+    // Clear old removed/tombstoned data
     for (const [key, value] of map.entries()) {
-      if (value.timestamp < timestamp) {
+      if (value.data === null && value.timestamp < timestamp) {
         map.delete(key)
       }
     }
@@ -49,15 +49,9 @@ function VDoc (options) {
     },
     set: function (key, data, timestamp, clientId, emitEvents = true) {
       const existing = map.get(key)
-      const clearedToTimestamp = map.get('_clearedToTimestamp')
 
       clientId = clientId == null ? localClientId : clientId
       timestamp = timestamp == null ? Date.now() : timestamp
-
-      // Check if timestamp is before cleared timestamp
-      if (clearedToTimestamp && timestamp < clearedToTimestamp.data) {
-        return
-      }
 
       // Update client state vector
       stateVectors.set(clientId, Math.max(stateVectors.get(clientId) || 0, timestamp))
@@ -65,12 +59,6 @@ function VDoc (options) {
       if (!existing) {
         map.set(key, { timestamp, data, clientId })
         if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
-
-        // Clear all data prior to this timestamp
-        if (key === '_clearedToTimestamp') {
-          clearToTimestamp(data)
-        }
-
         return
       }
 
@@ -84,11 +72,6 @@ function VDoc (options) {
         if (clientId > existing.clientId) {
           map.set(key, { timestamp, data, clientId })
           if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
-
-          // Clear all data prior to this timestamp
-          if (key === '_clearedToTimestamp') {
-            clearToTimestamp(data)
-          }
         }
         return
       }
@@ -96,19 +79,16 @@ function VDoc (options) {
       if (timestamp >= existing.timestamp) {
         map.set(key, { timestamp, data, clientId })
         if (emitEvents) this.emit('update', [{ key, data, timestamp, clientId }])
-
-        // Clear all data prior to this timestamp
-        if (key === '_clearedToTimestamp') {
-          clearToTimestamp(data)
-        }
       }
     },
     remove: function (key, timestamp, clientId) {
       this.set(key, null, timestamp, clientId)
     },
-    clearToTimestamp: function (fromTimestamp, timestamp, updateClientId) {
-      this.set('_clearedToTimestamp', fromTimestamp, timestamp, updateClientId)
-    },
+
+    // Clear old tombstoned data up to timestamp
+    // Will also clear old clientId vectors to make up space
+    // Warning! This is potentially dangerous, make sure all data has been synced up to this timestamp
+    clearToTimestamp,
     applySnapshot: function (snapshot) {
       for (const [key, value] of Object.entries(snapshot)) {
         this.set(key, value.data, value.timestamp, value.clientId, false)
