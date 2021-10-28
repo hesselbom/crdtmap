@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "main": "index.js",
   "license": "MIT",
+  "main": "./dist/vjs.cjs",
   "scripts": {
     "dist": "rm -rf dist && rollup -c",
     "prepare": "npm run dist",
