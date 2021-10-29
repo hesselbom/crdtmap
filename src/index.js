@@ -131,6 +131,9 @@ function VDoc (options) {
     },
     getStateVectors: function () {
       return Object.fromEntries(stateVectors)
+    },
+    destroy: function () {
+      this.emit('destroy', [])
     }
   }
 }

@@ -400,10 +400,12 @@ test('events', () => {
   const doc = VDoc()
   const onUpdate = jest.fn()
   const onSnapshot = jest.fn()
+  const onDestroy = jest.fn()
 
   // Events after .on()
   doc.on('update', onUpdate)
   doc.on('snapshot', onSnapshot)
+  doc.on('destroy', onDestroy)
 
   doc.set('key1', 'dataA', 1000, 1)
   doc.remove('key1', 1100, 2)
@@ -433,4 +435,8 @@ test('events', () => {
   expect(onSnapshot.mock.calls).toEqual([
     [{ key2: { timestamp: 1500, data: 'dataB', clientId: 2 } }]
   ])
+
+  expect(onDestroy.mock.calls).toEqual([])
+  doc.destroy()
+  expect(onDestroy.mock.calls).toEqual([[]])
 })
