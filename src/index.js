@@ -47,6 +47,7 @@ function VDoc (options) {
       // copy all listeners to an array first to make sure that no event is emitted to listeners that are subscribed while the event handler is called.
       return Array.from((observers.get(name) || new Map()).values()).forEach(f => f(...args))
     },
+    // Returns true if update is applied (i.e. latest data)
     set: function (key, data, timestamp, clientId, emitEvents = true) {
       const existing = map.get(key)
 
@@ -59,12 +60,12 @@ function VDoc (options) {
       if (!existing) {
         map.set(key, { timestamp, data, clientId })
         if (emitEvents) this.emit('update', [{ [key]: { data, timestamp, clientId } }])
-        return
+        return true
       }
 
       // Conflict resolution when removing with same timestamp
       if (data === null && timestamp === existing.timestamp) {
-        return
+        return false
       }
 
       // Conflict resolution when adding with same timestamp but different clients
@@ -72,14 +73,18 @@ function VDoc (options) {
         if (clientId > existing.clientId) {
           map.set(key, { timestamp, data, clientId })
           if (emitEvents) this.emit('update', [{ [key]: { data, timestamp, clientId } }])
+          return true
         }
-        return
+        return false
       }
 
       if (timestamp >= existing.timestamp) {
         map.set(key, { timestamp, data, clientId })
         if (emitEvents) this.emit('update', [{ [key]: { data, timestamp, clientId } }])
+        return true
       }
+
+      return false
     },
     remove: function (key, timestamp, clientId) {
       this.set(key, null, timestamp, clientId)
@@ -90,10 +95,13 @@ function VDoc (options) {
     // Warning! This is potentially dangerous, make sure all data has been synced up to this timestamp
     clearToTimestamp,
     applySnapshot: function (snapshot) {
+      const appliedSnapshot = {}
       for (const [key, value] of Object.entries(snapshot)) {
-        this.set(key, value.data, value.timestamp, value.clientId, false)
+        if (this.set(key, value.data, value.timestamp, value.clientId, false)) {
+          appliedSnapshot[key] = value
+        }
       }
-      this.emit('snapshot', [snapshot])
+      this.emit('snapshot', [snapshot, appliedSnapshot])
     },
     toJSON: function () {
       const obj = {}

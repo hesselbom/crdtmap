@@ -396,47 +396,87 @@ describe('state vectors', () => {
   })
 })
 
-test('events', () => {
-  const doc = VDoc()
-  const onUpdate = jest.fn()
-  const onSnapshot = jest.fn()
-  const onDestroy = jest.fn()
+describe('events', () => {
+  test('works', () => {
+    const doc = VDoc()
+    const onUpdate = jest.fn()
+    const onSnapshot = jest.fn()
+    const onDestroy = jest.fn()
 
-  // Events after .on()
-  doc.on('update', onUpdate)
-  doc.on('snapshot', onSnapshot)
-  doc.on('destroy', onDestroy)
+    // Events after .on()
+    doc.on('update', onUpdate)
+    doc.on('snapshot', onSnapshot)
+    doc.on('destroy', onDestroy)
 
-  doc.set('key1', 'dataA', 1000, 1)
-  doc.remove('key1', 1100, 2)
-  doc.clearToTimestamp(0)
-  doc.applySnapshot({
-    key2: { timestamp: 1500, data: 'dataB', clientId: 2 }
+    doc.set('key1', 'dataA', 1000, 1)
+    doc.remove('key1', 1100, 2)
+    doc.clearToTimestamp(0)
+    doc.applySnapshot({
+      key2: { timestamp: 1500, data: 'dataB', clientId: 2 }
+    })
+
+    // No events after .off()
+    doc.off('update', onUpdate)
+    doc.off('snapshot', onSnapshot)
+
+    // No events emitted for these
+    doc.set('key1', 'dataA', 1000, 1)
+    doc.remove('key1', 1100, 2)
+    doc.clearToTimestamp(0)
+    doc.applySnapshot({
+      key2: { timestamp: 1500, data: 'dataB', clientId: 2 }
+    })
+
+    // Event listener should've been called 3 times
+    expect(onUpdate.mock.calls).toEqual([
+      [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
+      [{ key1: { timestamp: 1100, data: null, clientId: 2 } }]
+    ])
+
+    // Snapshot should only call snapshot event, not multiple "set"s
+    expect(onSnapshot.mock.calls).toEqual([
+      [
+        { key2: { timestamp: 1500, data: 'dataB', clientId: 2 } },
+        { key2: { timestamp: 1500, data: 'dataB', clientId: 2 } }
+      ]
+    ])
+
+    expect(onDestroy.mock.calls).toEqual([])
+    doc.destroy()
+    expect(onDestroy.mock.calls).toEqual([[]])
   })
 
-  // No events after .off()
-  doc.off('update', onUpdate)
-  doc.off('snapshot', onSnapshot)
+  test('snapshots should include both full snapshot and updated values', () => {
+    const doc = VDoc()
+    const onSnapshot = jest.fn()
 
-  doc.set('key1', 'dataA', 1000, 1)
-  doc.remove('key1', 1100, 2)
-  doc.clearToTimestamp(0)
-  doc.applySnapshot({
-    key2: { timestamp: 1500, data: 'dataB', clientId: 2 }
+    // Events after .on()
+    doc.on('snapshot', onSnapshot)
+
+    doc.set('key1', 'dataA', 1000, 1)
+    doc.set('key2', 'dataA', 1500, 1)
+    doc.applySnapshot({
+      key1: { timestamp: 1500, data: 'dataB', clientId: 2 },
+      key2: { timestamp: 1400, data: 'dataB', clientId: 2 }
+    })
+
+    // No events after .off()
+    doc.off('snapshot', onSnapshot)
+
+    expect(onSnapshot.mock.calls).toEqual([
+      [
+        // First parameter includes full snapshot
+        {
+          key1: { timestamp: 1500, data: 'dataB', clientId: 2 },
+          key2: { timestamp: 1400, data: 'dataB', clientId: 2 }
+        },
+        // Second parameter includes applied snapshot
+        {
+          key1: { timestamp: 1500, data: 'dataB', clientId: 2 }
+          // key2 is not applied due to it having earlier timestamp to existing key2 (1400 < 1500)
+          // key2: { timestamp: 1400, data: 'dataB', clientId: 2 }
+        }
+      ]
+    ])
   })
-
-  // Event listener should've been called 3 times
-  expect(onUpdate.mock.calls).toEqual([
-    [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
-    [{ key1: { timestamp: 1100, data: null, clientId: 2 } }]
-  ])
-
-  // Snapshot should only call snapshot event, not multiple "set"s
-  expect(onSnapshot.mock.calls).toEqual([
-    [{ key2: { timestamp: 1500, data: 'dataB', clientId: 2 } }]
-  ])
-
-  expect(onDestroy.mock.calls).toEqual([])
-  doc.destroy()
-  expect(onDestroy.mock.calls).toEqual([[]])
 })
