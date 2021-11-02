@@ -47,6 +47,28 @@ test('remove key', () => {
   expect(doc.toJSON()).toEqual({})
 })
 
+test('get key value', () => {
+  const doc = VDoc()
+
+  expect(doc.get('key')).toBeUndefined()
+  doc.set('key', 'data', 1000)
+  expect(doc.get('key')).toBe('data')
+  doc.remove('key', 1001)
+  expect(doc.get('key')).toBeUndefined()
+
+  expect(doc.toJSON()).toEqual({})
+})
+
+test('test if key is available', () => {
+  const doc = VDoc()
+
+  expect(doc.has('key')).toBe(false)
+  doc.set('key', 'data', 1000)
+  expect(doc.has('key')).toBe(true)
+  doc.remove('key', 1001)
+  expect(doc.has('key')).toBe(false)
+})
+
 test('setting null is the same as removing', () => {
   const doc = VDoc()
   doc.set('key', 'data', 1000)
@@ -478,5 +500,106 @@ describe('events', () => {
         }
       ]
     ])
+  })
+})
+
+describe('subdocs', () => {
+  test('stores subdoc keys with prefix', () => {
+    const doc = VDoc()
+    const subMap1 = doc.getMap('sub1')
+    const subMap2 = doc.getMap('sub2')
+
+    expect(subMap1.has('key2')).toBe(false)
+
+    doc.set('key1', 'data1')
+    subMap1.set('key2', 'data2')
+    subMap2.set('key3', 'data3')
+
+    expect(doc.toJSON()).toEqual({
+      key1: 'data1',
+      'sub1:key2': 'data2',
+      'sub2:key3': 'data3'
+    })
+
+    expect(subMap1.get('key2')).toBe('data2')
+    expect(subMap1.has('key2')).toBe(true)
+  })
+
+  test('delete key', () => {
+    const doc = VDoc()
+    const subMap1 = doc.getMap('sub1')
+    const subMap2 = doc.getMap('sub2')
+
+    doc.set('key1', 'data1', 1000)
+    subMap1.set('key2', 'data2', 1000)
+    subMap2.set('key3', 'data3', 1000)
+
+    expect(doc.toJSON()).toEqual({
+      key1: 'data1',
+      'sub1:key2': 'data2',
+      'sub2:key3': 'data3'
+    })
+
+    expect(subMap1.get('key2')).toBe('data2')
+    subMap1.delete('key2', 1001)
+    expect(subMap1.get('key2')).toBeUndefined()
+
+    expect(doc.toJSON()).toEqual({
+      key1: 'data1',
+      'sub2:key3': 'data3'
+    })
+  })
+
+  test('loop subdoc keys with forEach', () => {
+    const doc = VDoc()
+    const subMap1 = doc.getMap('sub1')
+    const subMap2 = doc.getMap('sub2')
+
+    doc.set('key1', 'data1')
+    subMap1.set('key2', 'data2')
+    subMap2.set('key3', 'data3')
+    subMap1.set('key2-2', 'data2-2')
+    subMap1.set('removed-key', 'data', 1000)
+    subMap1.delete('removed-key', 1001)
+
+    const loopSub1 = jest.fn()
+    const loopSub2 = jest.fn()
+
+    subMap1.forEach(loopSub1)
+    subMap2.forEach(loopSub2)
+
+    expect(loopSub1.mock.calls).toEqual([
+      ['data2', 'key2'],
+      ['data2-2', 'key2-2']
+    ])
+    expect(loopSub2.mock.calls).toEqual([['data3', 'key3']])
+  })
+
+  test('get subdoc keys as entries array', () => {
+    const doc = VDoc()
+    const subMap1 = doc.getMap('sub1')
+    const subMap2 = doc.getMap('sub2')
+
+    doc.set('key1', 'data1')
+    subMap1.set('key2', 'data2')
+    subMap2.set('key3', 'data3')
+    subMap1.set('key2-2', 'data2-2')
+    subMap1.set('removed-key', 'data', 1000)
+    subMap1.delete('removed-key', 1001)
+
+    // let entries be array instead of iterator
+    expect(subMap1.entries()).toEqual([
+      ['key2', 'data2'],
+      ['key2-2', 'data2-2']
+    ])
+    expect(subMap2.entries()).toEqual([['key3', 'data3']])
+  })
+
+  test('getting same subdoc multiple times should result in same subdoc object', () => {
+    const doc = VDoc()
+    const subMap1 = doc.getMap('sub1')
+    const subMap2 = doc.getMap('sub1')
+
+    expect(subMap1).toBe(subMap2)
   })
 })

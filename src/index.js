@@ -11,6 +11,7 @@ function VDoc (options) {
   const map = new Map()
   const stateVectors = new Map()
   const observers = new Map()
+  const subMaps = new Map()
   const localClientId = (options && options.clientId) || random.uint32()
 
   const clearToTimestamp = (timestamp) => {
@@ -89,6 +90,16 @@ function VDoc (options) {
     remove: function (key, timestamp, clientId) {
       this.set(key, null, timestamp, clientId)
     },
+    delete: function (key, timestamp, clientId) {
+      this.remove(key, timestamp, clientId)
+    },
+    has: function (key) {
+      return !!this.get(key)
+    },
+    get: function (key) {
+      const data = map.get(key)
+      return (data && data.data) || undefined
+    },
 
     // Clear old tombstoned data up to timestamp
     // Will also clear old clientId vectors to make up space
@@ -142,6 +153,39 @@ function VDoc (options) {
     },
     destroy: function () {
       this.emit('destroy', [])
+    },
+    getMap: function (name) {
+      let subMap = subMaps.get(name)
+      if (subMap) return subMap
+
+      const prefix = name + ':'
+
+      subMap = {
+        set: (key, data, timestamp, clientId) => this.set(prefix + key, data, timestamp, clientId),
+        remove: (key, timestamp, clientId) => this.remove(prefix + key, timestamp, clientId),
+        delete: (key, timestamp, clientId) => this.remove(prefix + key, timestamp, clientId),
+        has: (key) => this.has(prefix + key),
+        get: (key) => this.get(prefix + key),
+        forEach: (cb) => map.forEach((data, key) => {
+          if (data.data && key.startsWith(prefix)) {
+            cb(data.data, key.substr(prefix.length))
+          }
+        }),
+        entries: () => {
+          const results = []
+
+          map.forEach((data, key) => {
+            if (data.data && key.startsWith(prefix)) {
+              results.push([key.substr(prefix.length), data.data])
+            }
+          })
+
+          return results
+        }
+      }
+      subMaps.set(name, subMap)
+
+      return subMap
     }
   }
 }
