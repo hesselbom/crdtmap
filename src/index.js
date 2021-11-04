@@ -35,6 +35,13 @@ function VDoc (options) {
     on: function (name, callback) {
       setIfUndefined(observers, name, set.create).add(callback)
     },
+    once: function (name, callback) {
+      const _f = (...args) => {
+        this.off(name, _f)
+        callback(...args) // eslint-disable-line node/no-callback-literal
+      }
+      this.on(name, _f)
+    },
     off: function (name, callback) {
       const nameObservers = observers.get(name)
       if (nameObservers != null) {

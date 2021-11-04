@@ -449,7 +449,7 @@ describe('events', () => {
       key2: { timestamp: 1500, data: 'dataB', clientId: 2 }
     })
 
-    // Event listener should've been called 3 times
+    // Event listener should've been called 2 times
     expect(onUpdate.mock.calls).toEqual([
       [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
       [{ key1: { timestamp: 1100, data: null, clientId: 2 } }]
@@ -499,6 +499,33 @@ describe('events', () => {
           // key2: { timestamp: 1400, data: 'dataB', clientId: 2 }
         }
       ]
+    ])
+  })
+
+  test('.once() should only be triggered once', () => {
+    const doc = VDoc()
+    const onUpdate = jest.fn()
+    const onUpdateMultiple = jest.fn()
+
+    // Events after .on()
+    doc.once('update', onUpdate)
+    doc.on('update', onUpdateMultiple)
+
+    doc.set('key1', 'dataA', 1000, 1)
+    doc.set('key1', 'dataA', 1000, 1)
+    doc.set('key1', 'dataA', 1000, 1)
+    doc.set('key1', 'dataA', 1000, 1)
+
+    expect(onUpdate.mock.calls).toEqual([
+      [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }]
+    ])
+
+    // Verify that regular onUpdate is called for each one
+    expect(onUpdateMultiple.mock.calls).toEqual([
+      [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
+      [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
+      [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }],
+      [{ key1: { timestamp: 1000, data: 'dataA', clientId: 1 } }]
     ])
   })
 })
