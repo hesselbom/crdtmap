@@ -7,7 +7,7 @@ const set = require('lib0/dist/set.cjs')
 const encoding = require('lib0/dist/encoding.cjs')
 const decoding = require('lib0/dist/decoding.cjs')
 
-function VDoc (options) {
+function CrdtMap (options) {
   const map = new Map()
   const stateVectors = new Map()
   const observers = new Map()
@@ -197,7 +197,7 @@ function VDoc (options) {
   }
 }
 
-VDoc.encodeSnapshot = function encodeSnapshot (snapshot) {
+CrdtMap.encodeSnapshot = function encodeSnapshot (snapshot) {
   const encoder = encoding.createEncoder()
 
   for (const [key, value] of Object.entries(snapshot)) {
@@ -218,7 +218,7 @@ VDoc.encodeSnapshot = function encodeSnapshot (snapshot) {
   return encoding.toUint8Array(encoder)
 }
 
-VDoc.decodeSnapshot = function decodeSnapshot (byteArray) {
+CrdtMap.decodeSnapshot = function decodeSnapshot (byteArray) {
   const decoder = decoding.createDecoder(byteArray)
   const snapshot = {}
 
@@ -243,7 +243,7 @@ VDoc.decodeSnapshot = function decodeSnapshot (byteArray) {
   return snapshot
 }
 
-VDoc.encodeStateVectors = function encodeStateVectors (stateVectors) {
+CrdtMap.encodeStateVectors = function encodeStateVectors (stateVectors) {
   const encoder = encoding.createEncoder()
 
   for (const [key, vector] of Object.entries(stateVectors)) {
@@ -254,7 +254,7 @@ VDoc.encodeStateVectors = function encodeStateVectors (stateVectors) {
   return encoding.toUint8Array(encoder)
 }
 
-VDoc.decodeStateVectors = function decodeStateVectors (byteArray) {
+CrdtMap.decodeStateVectors = function decodeStateVectors (byteArray) {
   const decoder = decoding.createDecoder(byteArray)
   const stateVectors = {}
 
@@ -268,4 +268,4 @@ VDoc.decodeStateVectors = function decodeStateVectors (byteArray) {
   return stateVectors
 }
 
-module.exports = VDoc
+module.exports = CrdtMap

@@ -1,8 +1,8 @@
 /* eslint-env jest */
-const VDoc = require('./index')
+const CrdtMap = require('./index')
 
 test('set keys', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   doc.set('key1', 'data', 1000)
   doc.set('key2', 'data', 1000)
@@ -14,13 +14,13 @@ test('set keys', () => {
 })
 
 test('verify that clientId is a uint', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   expect(doc.clientId).toBeGreaterThanOrEqual(0)
 })
 
 test('uses latest timestamped keys', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   doc.set('key3', 'later-data-before', 2000)
 
@@ -40,7 +40,7 @@ test('uses latest timestamped keys', () => {
 })
 
 test('remove key', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
   doc.set('key', 'data', 1000)
   doc.remove('key', 1001)
 
@@ -48,7 +48,7 @@ test('remove key', () => {
 })
 
 test('get key value', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   expect(doc.get('key')).toBeUndefined()
   doc.set('key', 'data', 1000)
@@ -60,7 +60,7 @@ test('get key value', () => {
 })
 
 test('test if key is available', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   expect(doc.has('key')).toBe(false)
   doc.set('key', 'data', 1000)
@@ -70,7 +70,7 @@ test('test if key is available', () => {
 })
 
 test('setting null is the same as removing', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
   doc.set('key', 'data', 1000)
   doc.set('key', null, 1001)
 
@@ -78,7 +78,7 @@ test('setting null is the same as removing', () => {
 })
 
 test('keep item instead of removing if same timestamp', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
   doc.set('key', 'data', 1000)
   doc.remove('key', 1000)
 
@@ -86,7 +86,7 @@ test('keep item instead of removing if same timestamp', () => {
 })
 
 test('if same timestamp and same client id, just uses latest, edge case', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
   doc.set('key', 'data', 1000)
   doc.set('key', 'data2', 1000)
 
@@ -94,7 +94,7 @@ test('if same timestamp and same client id, just uses latest, edge case', () => 
 })
 
 test('if same timestamp and different client ids, sort on clientId', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
   doc.set('key', 'data', 1000, 1) // clientId = 1
   doc.set('key', 'data2', 1000, 3) // clientId = 3
   doc.set('key', 'data3', 1000, 2) // clientId = 2
@@ -103,7 +103,7 @@ test('if same timestamp and different client ids, sort on clientId', () => {
 })
 
 test('uses latest timestamped keys even when removed', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   doc.set('key', 'data', 2000)
   doc.remove('key', 1000)
@@ -112,7 +112,7 @@ test('uses latest timestamped keys even when removed', () => {
 })
 
 test('remove if removed timestamp is later even if received before', () => {
-  const doc = VDoc()
+  const doc = CrdtMap()
 
   doc.remove('key', 2000)
   doc.set('key', 'data', 1000)
@@ -121,7 +121,7 @@ test('remove if removed timestamp is later even if received before', () => {
 })
 
 test('if timestamp is missing, use Date.now()', () => {
-  const doc = VDoc({ clientId: 1 })
+  const doc = CrdtMap({ clientId: 1 })
   const then = Date.now()
 
   doc.set('key', 'data')
@@ -131,7 +131,7 @@ test('if timestamp is missing, use Date.now()', () => {
 })
 
 test('get diff snapshot after specific timestamp', () => {
-  const doc = VDoc({ clientId: 1 })
+  const doc = CrdtMap({ clientId: 1 })
 
   doc.set('key', 'data', 1000)
   doc.set('key2', 'data', 1500)
@@ -144,7 +144,7 @@ test('get diff snapshot after specific timestamp', () => {
 })
 
 test('get diff snapshot after specific timestamp, making sure deletes are not included if old', () => {
-  const doc = VDoc({ clientId: 1 })
+  const doc = CrdtMap({ clientId: 1 })
 
   doc.set('key', 'data', 1000)
   doc.set('key2', 'data', 1500)
@@ -158,15 +158,15 @@ test('get diff snapshot after specific timestamp, making sure deletes are not in
 })
 
 test('get diff snapshot encoded as uint8 after specific timestamp, and decode', () => {
-  const doc = VDoc({ clientId: 1 })
+  const doc = CrdtMap({ clientId: 1 })
 
   doc.set('key', 'data', 1000)
   doc.set('key2', 'data', 1635257645564)
   doc.remove('key', 2000)
 
   const resultSnapshot = doc.getSnapshotFromTimestamp(1500)
-  const byteArray = VDoc.encodeSnapshot(doc.getSnapshotFromTimestamp(1500))
-  const decodedSnapshot = VDoc.decodeSnapshot(byteArray)
+  const byteArray = CrdtMap.encodeSnapshot(doc.getSnapshotFromTimestamp(1500))
+  const decodedSnapshot = CrdtMap.decodeSnapshot(byteArray)
 
   // Make sure we get byte array
   expect(byteArray)
@@ -185,7 +185,7 @@ test('get diff snapshot encoded as uint8 after specific timestamp, and decode', 
 })
 
 test('handle encode/decode of various types', () => {
-  const doc = VDoc({ clientId: 1 })
+  const doc = CrdtMap({ clientId: 1 })
 
   doc.set('string', 'data', 1000)
   doc.set('number', 10, 1000)
@@ -193,8 +193,8 @@ test('handle encode/decode of various types', () => {
   doc.set('object', { foo: 'bar' }, 1000)
 
   const resultSnapshot = doc.getSnapshotFromTimestamp(0)
-  const byteArray = VDoc.encodeSnapshot(doc.getSnapshotFromTimestamp(0))
-  const decodedSnapshot = VDoc.decodeSnapshot(byteArray)
+  const byteArray = CrdtMap.encodeSnapshot(doc.getSnapshotFromTimestamp(0))
+  const decodedSnapshot = CrdtMap.decodeSnapshot(byteArray)
 
   // Make sure we get byte array
   expect(byteArray)
@@ -217,7 +217,7 @@ test('handle encode/decode of various types', () => {
 })
 
 test('clear all tombstones from timestamp, to clean up', () => {
-  const doc = VDoc({ clientId: 1 })
+  const doc = CrdtMap({ clientId: 1 })
 
   doc.set('key1', 'data', 1000) // will stay even if older, because it contains data
   doc.set('keyToBeRemoved', 'data', 1000) // will stay
@@ -252,11 +252,11 @@ test('clear all tombstones from timestamp, to clean up', () => {
 })
 
 test('merge snapshot to document', () => {
-  const docA = VDoc()
+  const docA = CrdtMap()
   docA.set('key1', 'dataA', 1000)
   docA.set('key2', 'dataA', 1500)
 
-  const docB = VDoc()
+  const docB = CrdtMap()
   docB.set('key1', 'dataB', 1001)
   docB.set('key2', 'dataB', 1499)
 
@@ -269,14 +269,14 @@ test('merge snapshot to document', () => {
 })
 
 test('merge snapshot to document with _clearedToTimestamp', () => {
-  const docA = VDoc({ clientId: 1 })
+  const docA = CrdtMap({ clientId: 1 })
   docA.set('key1', 'dataA', 1000)
   docA.set('key2', 'dataA', 1500)
   docA.remove('key3', 1400)
   docA.remove('key4', 1500)
   docA.clearToTimestamp(1498)
 
-  const docB = VDoc({ clientId: 2 })
+  const docB = CrdtMap({ clientId: 2 })
   docB.set('key1', 'dataB', 1001)
   docB.set('key2', 'dataB', 1499)
 
@@ -298,7 +298,7 @@ test('merge snapshot to document with _clearedToTimestamp', () => {
 // State vectors are latest stored timestamp from each clientId
 describe('state vectors', () => {
   test('get state vectors', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
 
     // Empty before any data
     expect(doc.getStateVectors()).toEqual({})
@@ -323,7 +323,7 @@ describe('state vectors', () => {
   })
 
   test('remove old state vectors with clearToTimestamp', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
 
     doc.set('key1', 'dataA', 1000, 1)
     doc.set('key1', 'dataB', 1400, 2)
@@ -347,14 +347,14 @@ describe('state vectors', () => {
   })
 
   test('encode/decode state vectors', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
 
     doc.set('key1', 'dataA', 1000, 1)
     doc.set('key1', 'dataB', 1400, 2)
 
     const resultStateVectors = doc.getStateVectors()
-    const byteArray = VDoc.encodeStateVectors(doc.getStateVectors())
-    const decodedStateVectors = VDoc.decodeStateVectors(byteArray)
+    const byteArray = CrdtMap.encodeStateVectors(doc.getStateVectors())
+    const decodedStateVectors = CrdtMap.decodeStateVectors(byteArray)
 
     // Make sure we get byte array
     expect(byteArray)
@@ -373,7 +373,7 @@ describe('state vectors', () => {
   })
 
   test('get snapshot from state vectors', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
 
     doc.set('key1', 'dataA', 1000, 1)
     doc.set('key1', 'dataB', 1400, 2)
@@ -420,7 +420,7 @@ describe('state vectors', () => {
 
 describe('events', () => {
   test('works', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const onUpdate = jest.fn()
     const onSnapshot = jest.fn()
     const onDestroy = jest.fn()
@@ -469,7 +469,7 @@ describe('events', () => {
   })
 
   test('snapshots should include both full snapshot and updated values', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const onSnapshot = jest.fn()
 
     // Events after .on()
@@ -503,7 +503,7 @@ describe('events', () => {
   })
 
   test('.once() should only be triggered once', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const onUpdate = jest.fn()
     const onUpdateMultiple = jest.fn()
 
@@ -532,7 +532,7 @@ describe('events', () => {
 
 describe('subdocs', () => {
   test('stores subdoc keys with prefix', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const subMap1 = doc.getMap('sub1')
     const subMap2 = doc.getMap('sub2')
 
@@ -553,7 +553,7 @@ describe('subdocs', () => {
   })
 
   test('delete key', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const subMap1 = doc.getMap('sub1')
     const subMap2 = doc.getMap('sub2')
 
@@ -578,7 +578,7 @@ describe('subdocs', () => {
   })
 
   test('loop subdoc keys with forEach', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const subMap1 = doc.getMap('sub1')
     const subMap2 = doc.getMap('sub2')
 
@@ -603,7 +603,7 @@ describe('subdocs', () => {
   })
 
   test('get subdoc keys as entries array', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const subMap1 = doc.getMap('sub1')
     const subMap2 = doc.getMap('sub2')
 
@@ -623,7 +623,7 @@ describe('subdocs', () => {
   })
 
   test('getting same subdoc multiple times should result in same subdoc object', () => {
-    const doc = VDoc()
+    const doc = CrdtMap()
     const subMap1 = doc.getMap('sub1')
     const subMap2 = doc.getMap('sub1')
 

@@ -1,8 +1,8 @@
 {
-  "name": "vjs",
+  "name": "crdtmap",
   "version": "0.1.0",
   "license": "MIT",
-  "main": "./dist/vjs.cjs",
+  "main": "./dist/crdtmap.cjs",
   "scripts": {
     "dist": "rm -rf dist && rollup -c",
     "prepare": "npm run dist",

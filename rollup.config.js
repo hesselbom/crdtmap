@@ -5,8 +5,8 @@ export default [
   {
     input: 'src/index.js',
     output: {
-      name: 'V',
-      file: 'dist/vjs.cjs',
+      name: 'CrdtMap',
+      file: 'dist/crdtmap.cjs',
       format: 'cjs',
       sourcemap: true,
       exports: 'default'
