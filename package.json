@@ -1,6 +1,6 @@
 {
   "name": "crdtmap",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "main": "./dist/crdtmap.cjs",
   "scripts": {
@@ -18,5 +18,9 @@
   },
   "dependencies": {
     "lib0": "^0.2.42"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hesselbom/crdtmap"
   }
 }
