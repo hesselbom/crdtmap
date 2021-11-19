@@ -622,6 +622,25 @@ describe('subdocs', () => {
     expect(subMap2.entries()).toEqual([['key3', 'data3']])
   })
 
+  test('subdoc toJSON()', () => {
+    const doc = CrdtMap()
+    const subMap1 = doc.getMap('sub1')
+    const subMap2 = doc.getMap('sub2')
+
+    doc.set('key1', 'data1')
+    subMap1.set('key2', 'data2')
+    subMap2.set('key3', 'data3')
+    subMap1.set('key2-2', 'data2-2')
+    subMap1.set('removed-key', 'data', 1000)
+    subMap1.delete('removed-key', 1001)
+
+    expect(subMap1.toJSON()).toEqual({
+      key2: 'data2',
+      'key2-2': 'data2-2'
+    })
+    expect(subMap2.toJSON()).toEqual({ key3: 'data3' })
+  })
+
   test('getting same subdoc multiple times should result in same subdoc object', () => {
     const doc = CrdtMap()
     const subMap1 = doc.getMap('sub1')

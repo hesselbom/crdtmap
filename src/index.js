@@ -188,6 +188,17 @@ function CrdtMap (options) {
           })
 
           return results
+        },
+        toJSON: function () {
+          const obj = {}
+
+          map.forEach((value, key) => {
+            if (value.data !== null && key.startsWith(prefix)) {
+              obj[key.substr(prefix.length)] = value.data
+            }
+          })
+
+          return obj
         }
       }
       subMaps.set(name, subMap)
